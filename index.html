@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能代办清单</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .add-todo {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .todo-input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .todo-input:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .btn {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn-important {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            color: white;
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+
+        .btn-important:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 154, 158, 0.4);
+        }
+
+        .todos-container {
+            padding: 30px;
+        }
+
+        .todo-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .todo-item {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .todo-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .todo-item.important {
+            border-left: 5px solid #ff6b6b;
+            background: linear-gradient(135deg, #fff5f5 0%, #ffe0e0 100%);
+        }
+
+        .todo-item.completed {
+            background: #f8f9fa;
+            opacity: 0.8;
+        }
+
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+            color: #6c757d;
+        }
+
+        .todo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .todo-text {
+            font-size: 1.1em;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .todo-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 14px;
+            border-radius: 8px;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .todo-meta {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 10px;
+        }
+
+        .archive-section {
+            border-top: 2px solid #e9ecef;
+            padding-top: 20px;
+        }
+
+        .archive-toggle {
+            background: none;
+            border: none;
+            color: #6c757d;
+            cursor: pointer;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .archive-content {
+            margin-top: 15px;
+            display: none;
+        }
+
+        .archive-content.expanded {
+            display: block;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: 700;
+            color: #4facfe;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .priority-badge {
+            background: #ff6b6b;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 40px;
+        }
+
+        @media (max-width: 768px) {
+            .input-group {
+                flex-direction: column;
+            }
+            
+            .todo-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .stats {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 智能代办清单</h1>
+            <p>高效管理您的日常任务</p>
+        </div>
+
+        <div class="add-todo">
+            <div class="input-group">
+                <input type="text" class="todo-input" id="todoInput" placeholder="请输入新的代办事项..." />
+                <button class="btn btn-primary" onclick="addTodo()">添加</button>
+            </div>
+            <button class="btn btn-important" onclick="addImportantTodo()">⭐ 添加重要代办</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-number" id="totalTodos">0</div>
+                <div class="stat-label">总代办</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="activeTodos">0</div>
+                <div class="stat-label">进行中</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="completedTodos">0</div>
+                <div class="stat-label">已完成</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="importantTodos">0</div>
+                <div class="stat-label">重要</div>
+            </div>
+        </div>
+
+        <div class="todos-container">
+            <div class="todo-section">
+                <div class="section-title">
+                    ⭐ 重要代办
+                </div>
+                <div id="importantTodosList">
+                    <div class="empty-state">暂无重要代办事项</div>
+                </div>
+            </div>
+
+            <div class="todo-section">
+                <div class="section-title">
+                    📝 普通代办
+                </div>
+                <div id="normalTodosList">
+                    <div class="empty-state">暂无普通代办事项</div>
+                </div>
+            </div>
+
+            <div class="todo-section archive-section">
+                <button class="archive-toggle" onclick="toggleArchive()">
+                    📁 已完成 (<span id="archiveCount">0</span>)
+                    <span id="archiveArrow">▼</span>
+                </button>
+                <div class="archive-content" id="archiveContent">
+                    <div id="archivedTodosList">
+                        <div class="empty-state">暂无已完成的代办事项</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let todos = [];
+        let archiveExpanded = false;
+
+        async function loadTodos() {
+            try {
+                const response = await fetch('todos.json');
+                if (response.ok) {
+                    todos = await response.json();
+                } else {
+                    todos = [];
+                }
+            } catch (error) {
+                console.log('无法加载todos.json，使用空数组');
+                todos = [];
+            }
+        }
+
+        async function saveTodos() {
+            try {
+                const response = await fetch('todos.json', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(todos, null, 2)
+                });
+                
+                if (!response.ok) {
+                    console.error('保存失败');
+                }
+            } catch (error) {
+                console.error('保存失败:', error);
+            }
+        }
+
+        async function addTodo(isImportant = false) {
+            const input = document.getElementById('todoInput');
+            const text = input.value.trim();
+            
+            if (text === '') {
+                alert('请输入代办事项！');
+                return;
+            }
+
+            const todo = {
+                id: Date.now(),
+                text: text,
+                important: isImportant,
+                completed: false,
+                createdAt: new Date().toISOString(),
+                createdAtFormatted: new Date().toLocaleString('zh-CN'),
+                completedAt: null
+            };
+
+            todos.push(todo);
+            input.value = '';
+            await saveTodos();
+            renderTodos();
+        }
+
+        function addImportantTodo() {
+            addTodo(true);
+        }
+
+        async function toggleTodo(id) {
+            const todo = todos.find(t => t.id === id);
+            if (todo) {
+                todo.completed = !todo.completed;
+                if (todo.completed) {
+                    todo.completedAt = new Date().toLocaleString('zh-CN');
+                } else {
+                    todo.completedAt = null;
+                }
+                await saveTodos();
+                renderTodos();
+            }
+        }
+
+        async function checkOverdueTodos() {
+            const now = new Date();
+            const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            
+            let hasChanges = false;
+            
+            todos.forEach(todo => {
+                if (!todo.completed && !todo.important && todo.createdAt) {
+                    const createdDate = new Date(todo.createdAt);
+                    if (createdDate < oneDayAgo) {
+                        todo.important = true;
+                        hasChanges = true;
+                    }
+                }
+            });
+            
+            if (hasChanges) {
+                await saveTodos();
+                renderTodos();
+            }
+        }
+
+        function getOverdueStatus(createdAt) {
+            const now = new Date();
+            const createdDate = new Date(createdAt);
+            const diffTime = now.getTime() - createdDate.getTime();
+            const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+            
+            if (diffHours >= 24) {
+                return '<span style="color: #dc3545; font-weight: 600;"> | ⚠️ 已逾期</span>';
+            } else if (diffHours >= 20) {
+                const remainingHours = 24 - diffHours;
+                return `<span style="color: #ffc107; font-weight: 600;"> | ⏰ ${remainingHours}小时后自动标为重要</span>`;
+            }
+            
+            return '';
+        }
+
+        async function deleteTodo(id) {
+            todos = todos.filter(t => t.id !== id);
+            await saveTodos();
+            renderTodos();
+        }
+
+        async function toggleImportant(id) {
+            const todo = todos.find(t => t.id === id);
+            if (todo) {
+                todo.important = !todo.important;
+                await saveTodos();
+                renderTodos();
+            }
+        }
+
+        
+        function renderTodos() {
+            const importantTodos = todos.filter(t => t.important && !t.completed);
+            const normalTodos = todos.filter(t => !t.important && !t.completed);
+            const archivedTodos = todos.filter(t => t.completed);
+
+            renderTodoList(importantTodos, 'importantTodosList');
+            renderTodoList(normalTodos, 'normalTodosList');
+            renderTodoList(archivedTodos, 'archivedTodosList', true);
+
+            updateStats();
+        }
+
+        function renderTodoList(todoList, containerId, isArchived = false) {
+            const container = document.getElementById(containerId);
+            
+            if (todoList.length === 0) {
+                container.innerHTML = `<div class="empty-state">暂无${isArchived ? '已完成的' : ''}代办事项</div>`;
+                return;
+            }
+
+            container.innerHTML = todoList.map(todo => `
+                <div class="todo-item ${todo.important ? 'important' : ''} ${todo.completed ? 'completed' : ''}">
+                    <div class="todo-header">
+                        <div class="todo-text">${todo.text}</div>
+                        <div class="todo-actions">
+                            ${!isArchived ? `
+                                <button class="btn btn-small ${todo.important ? 'btn-info' : 'btn-important'}" 
+                                        onclick="toggleImportant(${todo.id})">
+                                    ${todo.important ? '取消重要' : '标为重要'}
+                                </button>
+                                <button class="btn btn-small btn-success" onclick="toggleTodo(${todo.id})">
+                                    完成
+                                </button>
+                            ` : `
+                                <button class="btn btn-small btn-success" onclick="toggleTodo(${todo.id})">
+                                    恢复
+                                </button>
+                            `}
+                            <button class="btn btn-small btn-danger" onclick="deleteTodo(${todo.id})">
+                                删除
+                            </button>
+                        </div>
+                    </div>
+                    <div class="todo-meta">
+                        ${todo.important ? '<span class="priority-badge">重要</span>' : ''}
+                        创建时间: ${todo.createdAtFormatted || todo.createdAt}
+                        ${todo.completedAt ? ` | 完成时间: ${todo.completedAt}` : ''}
+                        ${!todo.completed && !todo.important && todo.createdAt ? getOverdueStatus(todo.createdAt) : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateStats() {
+            const total = todos.length;
+            const active = todos.filter(t => !t.completed).length;
+            const completed = todos.filter(t => t.completed).length;
+            const important = todos.filter(t => t.important && !t.completed).length;
+
+            document.getElementById('totalTodos').textContent = total;
+            document.getElementById('activeTodos').textContent = active;
+            document.getElementById('completedTodos').textContent = completed;
+            document.getElementById('importantTodos').textContent = important;
+            document.getElementById('archiveCount').textContent = completed;
+        }
+
+        function toggleArchive() {
+            archiveExpanded = !archiveExpanded;
+            const content = document.getElementById('archiveContent');
+            const arrow = document.getElementById('archiveArrow');
+            
+            if (archiveExpanded) {
+                content.classList.add('expanded');
+                arrow.textContent = '▲';
+            } else {
+                content.classList.remove('expanded');
+                arrow.textContent = '▼';
+            }
+        }
+
+        // 键盘事件处理
+        document.getElementById('todoInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTodo();
+            }
+        });
+
+        // 初始化
+        async function init() {
+            await loadTodos();
+            await checkOverdueTodos();
+            renderTodos();
+        }
+        
+        // 启动应用
+        init();
+        
+        // 每分钟检查一次逾期代办
+        setInterval(async () => {
+            await checkOverdueTodos();
+        }, 60000);
+        
+        // 页面获得焦点时检查逾期代办
+        window.addEventListener('focus', async () => {
+            await checkOverdueTodos();
+        });
+    </script>
+</body>
+</html>
