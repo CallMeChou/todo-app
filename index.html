@@ -342,38 +342,43 @@
     </div>
 
     <script>
-        let todos = [];
+        let todos = JSON.parse(localStorage.getItem('todos')) || [];
         let archiveExpanded = false;
 
-        async function loadTodos() {
-            try {
-                const response = await fetch('todos.json');
-                if (response.ok) {
-                    todos = await response.json();
-                } else {
-                    todos = [];
-                }
-            } catch (error) {
-                console.log('无法加载todos.json，使用空数组');
-                todos = [];
-            }
+        // 本地存储功能
+        function saveTodos() {
+            localStorage.setItem('todos', JSON.stringify(todos));
         }
 
-        async function saveTodos() {
+        // 服务器API支持（可选）
+        async function saveToServer() {
             try {
-                const response = await fetch('todos.json', {
+                const response = await fetch('/api/todos', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(todos, null, 2)
+                    body: JSON.stringify(todos)
                 });
-                
-                if (!response.ok) {
-                    console.error('保存失败');
+                return response.ok;
+            } catch (error) {
+                console.log('服务器保存失败，仅使用本地存储');
+                return false;
+            }
+        }
+
+        async function loadFromServer() {
+            try {
+                const response = await fetch('/api/todos');
+                if (response.ok) {
+                    const serverTodos = await response.json();
+                    if (serverTodos.length > 0) {
+                        todos = serverTodos;
+                        saveTodos(); // 同步到本地存储
+                    }
                 }
             } catch (error) {
-                console.error('保存失败:', error);
+                console.log('无法从服务器加载，使用本地存储');
             }
         }
 
@@ -563,7 +568,8 @@
 
         // 初始化
         async function init() {
-            await loadTodos();
+            // 尝试从服务器加载数据，失败则使用本地存储
+            await loadFromServer();
             await checkOverdueTodos();
             renderTodos();
         }
@@ -580,6 +586,11 @@
         window.addEventListener('focus', async () => {
             await checkOverdueTodos();
         });
+
+        // 自动同步到服务器（每30秒）
+        setInterval(async () => {
+            await saveToServer();
+        }, 30000);
     </script>
 </body>
 </html>
