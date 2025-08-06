@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D1 数据库测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-item {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        input, button {
+            padding: 8px 12px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #results {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 D1 数据库测试页面</h1>
+        
+        <div class="input-group">
+            <label>Workers API 地址:</label>
+            <input type="text" id="workersApi" placeholder="https://todo-app.your-subdomain.workers.dev" 
+                   value="https://todo-app.your-subdomain.workers.dev" style="width: 300px;">
+        </div>
+        
+        <div class="input-group">
+            <label>用户ID:</label>
+            <input type="text" id="userId" placeholder="test-user" value="test-user">
+        </div>
+        
+        <div class="input-group">
+            <button onclick="testHealth()">测试连接</button>
+            <button onclick="testGetTodos()">获取数据</button>
+            <button onclick="testCreateTodo()">创建测试数据</button>
+            <button onclick="testUpdateTodos()">更新数据</button>
+            <button onclick="testDeleteTodo()">删除数据</button>
+            <button onclick="clearResults()">清除结果</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        let testResults = [];
+
+        function logResult(message, isError = false) {
+            const timestamp = new Date().toLocaleTimeString();
+            testResults.push({
+                time: timestamp,
+                message: message,
+                isError: isError
+            });
+            updateResultsDisplay();
+        }
+
+        function updateResultsDisplay() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = testResults.map(result => `
+                <div class="test-item ${result.isError ? 'error' : 'success'}">
+                    <strong>${result.time}</strong> - ${result.message}
+                </div>
+            `).join('');
+        }
+
+        function clearResults() {
+            testResults = [];
+            updateResultsDisplay();
+        }
+
+        async function makeRequest(endpoint, method = 'GET', body = null) {
+            const api = document.getElementById('workersApi').value;
+            const userId = document.getElementById('userId').value;
+            const url = `${api}${endpoint}${endpoint.includes('?') ? '&' : '?'}user_id=${userId}`;
+            
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: body ? JSON.stringify(body) : null
+                });
+                
+                const data = await response.json();
+                return { success: response.ok, data, status: response.status };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function testHealth() {
+            logResult('开始测试连接...');
+            const result = await makeRequest('/health');
+            if (result.success) {
+                logResult(`✅ 连接成功: ${JSON.stringify(result.data)}`);
+            } else {
+                logResult(`❌ 连接失败: ${result.error}`);
+            }
+        }
+
+        async function testGetTodos() {
+            logResult('开始获取数据...');
+            const result = await makeRequest('/api/todos');
+            if (result.success) {
+                logResult(`✅ 获取数据成功: ${result.data.length} 条记录`);
+                result.data.forEach(todo => {
+                    logResult(`  - ${todo.text} (${todo.completed ? '已完成' : '未完成'})`);
+                });
+            } else {
+                logResult(`❌ 获取数据失败: ${result.error}`);
+            }
+        }
+
+        async function testCreateTodo() {
+            logResult('开始创建测试数据...');
+            const testTodo = {
+                text: `测试任务 ${new Date().toLocaleTimeString()}`,
+                important: false,
+                completed: false,
+                createdAt: new Date().toISOString()
+            };
+            
+            const result = await makeRequest('/api/todos', 'POST', testTodo);
+            if (result.success) {
+                logResult(`✅ 创建成功: ${result.data.text} (ID: ${result.data.id})`);
+            } else {
+                logResult(`❌ 创建失败: ${result.error}`);
+            }
+        }
+
+        async function testUpdateTodos() {
+            logResult('开始更新数据...');
+            const getResult = await makeRequest('/api/todos');
+            if (getResult.success && getResult.data.length > 0) {
+                const todos = getResult.data;
+                // 修改第一个任务
+                todos[0].text = `更新后的任务 ${new Date().toLocaleTimeString()}`;
+                todos[0].important = !todos[0].important;
+                
+                const updateResult = await makeRequest('/api/todos', 'PUT', todos);
+                if (updateResult.success) {
+                    logResult(`✅ 更新成功: 修改了 ${todos.length} 条记录`);
+                } else {
+                    logResult(`❌ 更新失败: ${updateResult.error}`);
+                }
+            } else {
+                logResult('❌ 没有数据可以更新');
+            }
+        }
+
+        async function testDeleteTodo() {
+            logResult('开始删除数据...');
+            const getResult = await makeRequest('/api/todos');
+            if (getResult.success && getResult.data.length > 0) {
+                const todoToDelete = getResult.data[0];
+                const deleteResult = await makeRequest(`/api/todos?id=${todoToDelete.id}`, 'DELETE');
+                if (deleteResult.success) {
+                    logResult(`✅ 删除成功: ${todoToDelete.text}`);
+                } else {
+                    logResult(`❌ 删除失败: ${deleteResult.error}`);
+                }
+            } else {
+                logResult('❌ 没有数据可以删除');
+            }
+        }
+
+        // 页面加载时自动测试连接
+        window.onload = function() {
+            logResult('🚀 测试页面已加载');
+            logResult('💡 请先配置 Workers API 地址');
+        };
+    </script>
+</body>
+</html>

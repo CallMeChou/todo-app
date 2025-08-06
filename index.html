@@ -346,19 +346,161 @@
     </div>
 
     <script>
-        let todos = JSON.parse(localStorage.getItem('todos')) || [];
-        let archiveExpanded = false;
+        // 配置 - 可以根据需要修改
+        const config = {
+            // Workers API 地址
+            workersApi: window.WORKERS_API || 'https://todo-app.your-worker.workers.dev',
+            // 用户ID（可以设置为用户名、邮箱或其他标识）
+            userId: window.USER_ID || 'default',
+            // 启用本地缓存（离线时使用）
+            enableLocalCache: true
+        };
 
-        // 本地存储功能
-        function saveTodos() {
-            localStorage.setItem('todos', JSON.stringify(todos));
+        let todos = [];
+        let archiveExpanded = false;
+        let isOnline = true;
+
+        // 检测网络状态
+        window.addEventListener('online', () => {
+            isOnline = true;
+            syncWithCloud();
+        });
+
+        window.addEventListener('offline', () => {
+            isOnline = false;
+        });
+
+        // D1 数据库功能
+        async function saveTodos() {
+            // 保存到本地缓存
+            if (config.enableLocalCache) {
+                localStorage.setItem('todos', JSON.stringify(todos));
+            }
+            
+            // 保存到 D1 数据库
+            if (isOnline) {
+                try {
+                    const response = await fetch(`${config.workersApi}/api/todos`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(todos)
+                    });
+                    
+                    if (!response.ok) {
+                        console.error('D1 保存失败:', await response.text());
+                    }
+                } catch (error) {
+                    console.error('D1 保存失败:', error);
+                }
+            }
         }
 
-        // Cloudflare Pages适配 - 使用GitHub Gist作为数据存储
-        async function saveToCloud() {
+        // 从 D1 数据库加载数据
+        async function loadTodos() {
             try {
-                // 如果配置了GitHub Gist，则保存到云端
-                if (window.GIST_ID && window.GITHUB_TOKEN) {
+                const response = await fetch(`${config.workersApi}/api/todos?user_id=${config.userId}`);
+                if (response.ok) {
+                    const cloudTodos = await response.json();
+                    todos = cloudTodos.map(todo => ({
+                        ...todo,
+                        important: todo.important === 1,
+                        completed: todo.completed === 1,
+                        createdAtFormatted: new Date(todo.created_at).toLocaleString('zh-CN')
+                    }));
+                    
+                    // 更新本地缓存
+                    if (config.enableLocalCache) {
+                        localStorage.setItem('todos', JSON.stringify(todos));
+                    }
+                    
+                    return true;
+                }
+            } catch (error) {
+                console.error('从 D1 加载失败:', error);
+            }
+            
+            // 如果云端加载失败，使用本地缓存
+            if (config.enableLocalCache) {
+                todos = JSON.parse(localStorage.getItem('todos')) || [];
+            }
+            
+            return false;
+        }
+
+        // 创建新的 todo
+        async function createTodo(todo) {
+            if (isOnline) {
+                try {
+                    const response = await fetch(`${config.workersApi}/api/todos?user_id=${config.userId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(todo)
+                    });
+                    
+                    if (response.ok) {
+                        return await response.json();
+                    }
+                } catch (error) {
+                    console.error('创建 todo 失败:', error);
+                }
+            }
+            
+            // 离线时本地创建
+            return {
+                id: Date.now(),
+                ...todo,
+                createdAtFormatted: new Date().toLocaleString('zh-CN')
+            };
+        }
+
+        // 删除 todo
+        async function deleteTodoFromCloud(id) {
+            if (isOnline) {
+                try {
+                    await fetch(`${config.workersApi}/api/todos?id=${id}&user_id=${config.userId}`, {
+                        method: 'DELETE'
+                    });
+                } catch (error) {
+                    console.error('删除 todo 失败:', error);
+                }
+            }
+        }
+
+        // 同步云端数据
+        async function syncWithCloud() {
+            if (isOnline) {
+                const localTodos = JSON.parse(localStorage.getItem('todos')) || [];
+                if (localTodos.length > 0) {
+                    try {
+                        await fetch(`${config.workersApi}/api/todos`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(localTodos)
+                        });
+                    } catch (error) {
+                        console.error('同步失败:', error);
+                    }
+                }
+            }
+        }
+
+        // 兼容旧的 GitHub Gist 功能
+        async function saveToCloud() {
+            // 优先使用 D1 数据库
+            if (window.WORKERS_API) {
+                await saveTodos();
+                return true;
+            }
+            
+            // 如果配置了 GitHub Gist，则保存到云端
+            if (window.GIST_ID && window.GITHUB_TOKEN) {
+                try {
                     const response = await fetch(`https://api.github.com/gists/${window.GIST_ID}`, {
                         method: 'PATCH',
                         headers: {
@@ -374,18 +516,23 @@
                         })
                     });
                     return response.ok;
+                } catch (error) {
+                    console.log('云端保存失败，仅使用本地存储');
+                    return false;
                 }
-                return false;
-            } catch (error) {
-                console.log('云端保存失败，仅使用本地存储');
-                return false;
             }
+            return false;
         }
 
         async function loadFromCloud() {
-            try {
-                // 如果配置了GitHub Gist，则从云端加载
-                if (window.GIST_ID) {
+            // 优先使用 D1 数据库
+            if (window.WORKERS_API) {
+                return await loadTodos();
+            }
+            
+            // 如果配置了 GitHub Gist，则从云端加载
+            if (window.GIST_ID) {
+                try {
                     const response = await fetch(`https://api.github.com/gists/${window.GIST_ID}`);
                     if (response.ok) {
                         const gist = await response.json();
@@ -396,12 +543,11 @@
                             return true;
                         }
                     }
+                } catch (error) {
+                    console.log('无法从云端加载，使用本地存储');
                 }
-                return false;
-            } catch (error) {
-                console.log('无法从云端加载，使用本地存储');
-                return false;
             }
+            return false;
         }
 
         // 导出/导入数据功能
@@ -453,16 +599,16 @@
             }
 
             const todo = {
-                id: Date.now(),
                 text: text,
                 important: isImportant,
                 completed: false,
                 createdAt: new Date().toISOString(),
-                createdAtFormatted: new Date().toLocaleString('zh-CN'),
                 completedAt: null
             };
 
-            todos.push(todo);
+            // 使用 createTodo 函数创建
+            const newTodo = await createTodo(todo);
+            todos.push(newTodo);
             input.value = '';
             await saveTodos();
             renderTodos();
@@ -525,6 +671,9 @@
         }
 
         async function deleteTodo(id) {
+            // 先从云端删除
+            await deleteTodoFromCloud(id);
+            // 再从本地删除
             todos = todos.filter(t => t.id !== id);
             await saveTodos();
             renderTodos();
@@ -629,13 +778,28 @@
 
         // 初始化
         async function init() {
-            // 尝试从云端加载数据，失败则使用本地存储
-            const cloudLoaded = await loadFromCloud();
-            if (!cloudLoaded) {
+            // 检测网络状态
+            isOnline = navigator.onLine;
+            
+            // 尝试从 D1 数据库加载数据
+            const d1Loaded = await loadTodos();
+            if (d1Loaded) {
+                console.log('从 D1 数据库加载数据成功');
+            } else {
                 console.log('使用本地存储数据');
             }
+            
             await checkOverdueTodos();
             renderTodos();
+            
+            // 显示同步状态
+            updateSyncStatus();
+        }
+        
+        // 更新同步状态显示
+        function updateSyncStatus() {
+            const status = isOnline ? '🟢 在线' : '🔴 离线';
+            console.log('同步状态:', status);
         }
         
         // 启动应用
@@ -651,14 +815,26 @@
             await checkOverdueTodos();
         });
 
-        // 自动同步到云端（每2分钟）
+        // 自动同步到云端（每30秒）
         setInterval(async () => {
-            await saveToCloud();
-        }, 120000);
+            if (isOnline) {
+                await saveTodos();
+            }
+        }, 30000);
+
+        // 页面获得焦点时同步数据
+        window.addEventListener('focus', async () => {
+            if (isOnline) {
+                await loadTodos();
+                renderTodos();
+            }
+        });
 
         // 页面卸载时保存到云端
         window.addEventListener('beforeunload', async () => {
-            await saveToCloud();
+            if (isOnline) {
+                await saveTodos();
+            }
         });
     </script>
 </body>

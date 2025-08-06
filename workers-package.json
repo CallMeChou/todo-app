@@ -1,0 +1,20 @@
+{
+  "name": "todo-app-workers",
+  "version": "1.0.0",
+  "description": "Todo app with Cloudflare Workers and D1 database",
+  "main": "worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create todo-app-db",
+    "db:init": "wrangler d1 execute todo-app-db --file schema.sql",
+    "db:backup": "wrangler d1 export todo-app-db",
+    "db:restore": "wrangler d1 import todo-app-db"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  },
+  "keywords": ["todo", "workers", "d1", "cloudflare"],
+  "author": "Your Name",
+  "license": "MIT"
+}
